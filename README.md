@@ -2,7 +2,15 @@
 
 CLI tools for working with GitHub CODEOWNERS files.
 
-## owners (default)
+## Install
+
+```
+cargo install --path .
+```
+
+## Usage
+
+### owners (default)
 
 Show the owners for one or more paths, based on the working tree CODEOWNERS. This is the default command — the `owners` subcommand can be omitted.
 
@@ -11,7 +19,7 @@ codeowners src/main.rs src/lib.rs
 codeowners owners src/main.rs src/lib.rs  # equivalent
 ```
 
-## explain
+### explain
 
 Explain the CODEOWNERS assignment for a path. Shows all matching rules, which ones were superseded, and which rule is active.
 
@@ -19,7 +27,7 @@ Explain the CODEOWNERS assignment for a path. Shows all matching rules, which on
 codeowners explain src/main.rs
 ```
 
-## diff
+### diff
 
 Show how code ownership changes between two git refs. Reports added files, removed files, and files whose ownership changed due to CODEOWNERS rule changes.
 
