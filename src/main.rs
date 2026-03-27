@@ -1,5 +1,5 @@
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 use tabled::{builder::Builder, settings::Style};
 
 use codeowners::{get_diff, get_explain, get_owners, GitRef};
@@ -7,18 +7,27 @@ use codeowners::{get_diff, get_explain, get_owners, GitRef};
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    match &cli.command {
-        Commands::Owners { paths } => cmd_owners(paths),
-        Commands::Explain { path } => cmd_explain(path),
-        Commands::Diff { base_ref, head_ref } => cmd_diff(base_ref, head_ref),
+    match cli.command {
+        Some(Commands::Owners { paths }) => cmd_owners(&paths),
+        Some(Commands::Explain { path }) => cmd_explain(&path),
+        Some(Commands::Diff { base_ref, head_ref }) => cmd_diff(&base_ref, &head_ref),
+        None if cli.paths.is_empty() => {
+            Cli::command().print_help()?;
+            Ok(())
+        }
+        None => cmd_owners(&cli.paths),
     }
 }
 
 #[derive(Parser)]
 #[command(about = "Tools for working with GitHub CODEOWNERS files")]
+#[command(args_conflicts_with_subcommands = true)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
+
+    /// Paths to look up owners for.
+    paths: Vec<String>,
 }
 
 #[derive(Subcommand)]

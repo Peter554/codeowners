@@ -2,12 +2,13 @@
 
 CLI tools for working with GitHub CODEOWNERS files.
 
-## owners
+## owners (default)
 
-Show the owners for one or more paths, based on the working tree CODEOWNERS.
+Show the owners for one or more paths, based on the working tree CODEOWNERS. This is the default command — the `owners` subcommand can be omitted.
 
 ```
-codeowners owners src/main.rs src/lib.rs
+codeowners src/main.rs src/lib.rs
+codeowners owners src/main.rs src/lib.rs  # equivalent
 ```
 
 ## explain
