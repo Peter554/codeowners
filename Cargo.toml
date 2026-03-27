@@ -1,0 +1,15 @@
+[package]
+name = "codeowners"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+codeowners-rs = "0.1"
+itertools = "0.14.0"
+rayon = "1"
+tabled = "0.20"
+
+[profile.release]
+lto = true
