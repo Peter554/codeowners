@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use codeowners_rs::parse;
 use itertools::Itertools;
 use rayon::prelude::*;
@@ -7,14 +7,22 @@ mod git;
 mod owners;
 
 use git::{discover_repo_root, list_files, load_codeowners};
-use owners::{build_filter_ruleset, changed_codeowners_lines, resolve_owners};
+use owners::{build_filter_ruleset, changed_codeowners_lines, explain_path, resolve_owners};
+
+pub use owners::MatchedRule;
 
 /// Look up the owners for each path using the working tree CODEOWNERS.
 ///
 /// Returns a list of (path, owners) sorted by path. An empty owner list means
-/// the path is unowned.
+/// the path is unowned. Returns an error if any path does not exist.
 pub fn get_owners(paths: &[String]) -> Result<Vec<(String, Vec<String>)>> {
     let root = discover_repo_root()?;
+
+    let missing: Vec<_> = paths.iter().filter(|p| !root.join(p).exists()).collect();
+    if !missing.is_empty() {
+        bail!("paths do not exist:\n{}", missing.iter().join("\n"));
+    }
+
     let src = load_codeowners(&root, &GitRef::WorkingTree)?;
     let ruleset = parse(&src).into_ruleset();
 
@@ -23,6 +31,26 @@ pub fn get_owners(paths: &[String]) -> Result<Vec<(String, Vec<String>)>> {
         .map(|p| (p.clone(), resolve_owners(&ruleset, p)))
         .sorted()
         .collect())
+}
+
+/// Explain the CODEOWNERS assignment for a single path.
+///
+/// Returns the active owners and all matching rules with line numbers.
+/// Returns an error if the path does not exist.
+pub fn get_explain(path: &str) -> Result<(Vec<String>, Vec<MatchedRule>)> {
+    let root = discover_repo_root()?;
+
+    if !root.join(path).exists() {
+        bail!("path does not exist: {path}");
+    }
+
+    let src = load_codeowners(&root, &GitRef::WorkingTree)?;
+    let ruleset = parse(&src).into_ruleset();
+
+    let owners = resolve_owners(&ruleset, path);
+    let rules = explain_path(&ruleset, &src, path);
+
+    Ok((owners, rules))
 }
 
 /// A git ref or the working tree.

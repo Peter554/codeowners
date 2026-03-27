@@ -2,13 +2,14 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 use tabled::{builder::Builder, settings::Style};
 
-use codeowners::{get_diff, get_owners, GitRef};
+use codeowners::{get_diff, get_explain, get_owners, GitRef};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match &cli.command {
         Commands::Owners { paths } => cmd_owners(paths),
+        Commands::Explain { path } => cmd_explain(path),
         Commands::Diff { base_ref, head_ref } => cmd_diff(base_ref, head_ref),
     }
 }
@@ -27,6 +28,12 @@ enum Commands {
         /// Paths to look up owners for.
         #[arg(required = true)]
         paths: Vec<String>,
+    },
+
+    /// Explain the CODEOWNERS assignment for a path.
+    Explain {
+        /// Path to explain ownership for.
+        path: String,
     },
 
     /// Show how code ownership changes between two git refs.
@@ -50,6 +57,31 @@ fn cmd_owners(paths: &[String]) -> Result<()> {
         .collect();
 
     println!("{}", build_markdown_table(&["path", "owners"], &rows));
+    Ok(())
+}
+
+fn cmd_explain(path: &str) -> Result<()> {
+    let (owners, rules) = get_explain(path)?;
+
+    println!("Owners: {}\n", format_owners(&owners));
+
+    if rules.is_empty() {
+        println!("No matching rules.");
+    } else {
+        let mut builder = Builder::new();
+        builder.push_record(["", "Line", "Pattern", "Owners", "Status"]);
+        for rule in &rules {
+            builder.push_record([
+                if rule.active { "\u{2192}" } else { "" },
+                &rule.line.to_string(),
+                &rule.pattern,
+                &format_owners(&rule.owners),
+                if rule.active { "ACTIVE" } else { "superseded" },
+            ]);
+        }
+        println!("{}", builder.build().with(Style::markdown()));
+    }
+
     Ok(())
 }
 

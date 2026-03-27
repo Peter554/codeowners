@@ -2,6 +2,48 @@ use std::collections::{HashMap, HashSet};
 
 use codeowners_rs::{parse, RuleSet};
 
+/// A CODEOWNERS rule that matched a path, with its source line number.
+pub struct MatchedRule {
+    pub line: usize,
+    pub pattern: String,
+    pub owners: Vec<String>,
+    pub active: bool,
+}
+
+/// Find all CODEOWNERS rules matching a path, with line numbers from the source.
+///
+/// Gets the set of matching patterns from the ruleset, then scans the raw
+/// source to find those patterns and their line numbers. The last matching
+/// rule is marked active (CODEOWNERS uses last-match-wins semantics).
+pub fn explain_path(ruleset: &RuleSet, src: &str, path: &str) -> Vec<MatchedRule> {
+    let matching = ruleset.all_matching_rules(path);
+    let patterns: HashSet<&str> = matching.iter().map(|(_, r)| r.pattern.as_str()).collect();
+
+    let mut rules: Vec<MatchedRule> = src
+        .lines()
+        .enumerate()
+        .filter_map(|(i, line)| {
+            let pattern = line.split_whitespace().next()?;
+            if !patterns.contains(pattern) {
+                return None;
+            }
+            let owners = line.split_whitespace().skip(1).map(String::from).collect();
+            Some(MatchedRule {
+                line: i + 1,
+                pattern: pattern.to_owned(),
+                owners,
+                active: false,
+            })
+        })
+        .collect();
+
+    if let Some(last) = rules.last_mut() {
+        last.active = true;
+    }
+
+    rules
+}
+
 /// Resolve the owners of a path, returning individual owner strings.
 /// Returns an empty vec if no rule matches.
 pub fn resolve_owners(ruleset: &RuleSet, path: &str) -> Vec<String> {
