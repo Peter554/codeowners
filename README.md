@@ -29,3 +29,7 @@ codeowners diff
 # Compare two refs
 codeowners diff main feature-branch
 ```
+
+## Acknowledgements
+
+The `diff` subcommand is inspired by [codeowners-diff](https://github.com/samueljsb/codeowners-diff).
