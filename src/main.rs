@@ -14,7 +14,8 @@ fn main() -> Result<()> {
             paths,
             stdin,
             no_check_path,
-        }) => cmd_owners(&resolve_paths(&paths, stdin)?, no_check_path),
+            filter,
+        }) => cmd_owners(&resolve_paths(&paths, stdin)?, no_check_path, &filter),
         Some(Commands::Explain {
             path,
             no_check_path,
@@ -24,7 +25,11 @@ fn main() -> Result<()> {
             Cli::command().print_help()?;
             Ok(())
         }
-        None => cmd_owners(&resolve_paths(&cli.paths, cli.stdin)?, cli.no_check_path),
+        None => cmd_owners(
+            &resolve_paths(&cli.paths, cli.stdin)?,
+            cli.no_check_path,
+            &cli.filter,
+        ),
     }
 }
 
@@ -45,6 +50,10 @@ struct Cli {
     /// Skip checking that paths exist.
     #[arg(long)]
     no_check_path: bool,
+
+    /// Filter results by owner (comma-separated). Use "unowned" for unowned paths.
+    #[arg(long, value_delimiter = ',')]
+    filter: Vec<String>,
 }
 
 #[derive(Subcommand)]
@@ -61,6 +70,10 @@ enum Commands {
         /// Skip checking that paths exist.
         #[arg(long)]
         no_check_path: bool,
+
+        /// Filter results by owner (comma-separated). Use "unowned" for unowned paths.
+        #[arg(long, value_delimiter = ',')]
+        filter: Vec<String>,
     },
 
     /// Explain the CODEOWNERS assignment for a path.
@@ -102,8 +115,8 @@ fn resolve_paths(paths: &[String], stdin: bool) -> Result<Vec<String>> {
     Ok(result)
 }
 
-fn cmd_owners(paths: &[String], no_check_path: bool) -> Result<()> {
-    let owners = get_owners(paths, !no_check_path)?;
+fn cmd_owners(paths: &[String], no_check_path: bool, filter: &[String]) -> Result<()> {
+    let owners = get_owners(paths, !no_check_path, filter)?;
 
     let rows: Vec<(String, String)> = owners
         .into_iter()

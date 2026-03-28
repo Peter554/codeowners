@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::{bail, Result};
 use codeowners_rs::parse;
 use itertools::Itertools;
@@ -15,8 +17,13 @@ pub use owners::MatchedRule;
 ///
 /// Returns a list of (path, owners) sorted by path. An empty owner list means
 /// the path is unowned. When `check_paths` is true, returns an error if any
-/// path does not exist.
-pub fn get_owners(paths: &[String], check_paths: bool) -> Result<Vec<(String, Vec<String>)>> {
+/// path does not exist. When `filter` is non-empty, only paths whose owners
+/// intersect the filter are returned; use "unowned" to match unowned paths.
+pub fn get_owners(
+    paths: &[String],
+    check_paths: bool,
+    filter: &[String],
+) -> Result<Vec<(String, Vec<String>)>> {
     let root = discover_repo_root()?;
 
     if check_paths {
@@ -28,16 +35,29 @@ pub fn get_owners(paths: &[String], check_paths: bool) -> Result<Vec<(String, Ve
 
     let src = load_codeowners(&root, &GitRef::WorkingTree)?;
     let ruleset = parse(&src).into_ruleset();
+    let filter: HashSet<&str> = filter.iter().map(|s| s.as_str()).collect();
 
     let results: Vec<_> = paths
         .par_iter()
         .map(|p| (p.clone(), resolve_owners(&ruleset, p)))
+        .filter(|(_, owners)| matches_filter(owners, &filter))
         .collect::<Vec<_>>()
         .into_iter()
         .sorted()
         .collect();
 
     Ok(results)
+}
+
+/// Returns true if the owners match the filter, or if the filter is empty.
+fn matches_filter(owners: &[String], filter: &HashSet<&str>) -> bool {
+    if filter.is_empty() {
+        return true;
+    }
+    if owners.is_empty() {
+        return filter.contains("unowned");
+    }
+    owners.iter().any(|o| filter.contains(o.as_str()))
 }
 
 /// Explain the CODEOWNERS assignment for a single path.

@@ -23,6 +23,13 @@ git ls-files | codeowners --stdin
 
 # Skip path existence check
 codeowners --no-check-path path/that/may/not/exist.rs
+
+# Filter by owner (comma-separated)
+git ls-files | codeowners --stdin --filter @my-team
+git ls-files | codeowners --stdin --filter @team-a,@team-b
+
+# Show only unowned files
+git ls-files | codeowners --stdin --filter unowned
 ```
 
 ### explain
