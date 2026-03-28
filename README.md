@@ -10,6 +10,10 @@ cargo install --path .
 
 ## Commands
 
+- [owners](#owners-default) - Show the owners for one or more paths
+- [explain](#explain) - Explain the codeowners assignment for a path
+- [diff](#diff) - Show how code ownership changes between two git refs
+
 ### owners (default)
 
 Show the owners for one or more paths, based on the working tree CODEOWNERS. This is the default command — the `owners` subcommand can be omitted.
