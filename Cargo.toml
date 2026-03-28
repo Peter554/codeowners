@@ -5,8 +5,10 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+bstr = "1.12.1"
 clap = { version = "4", features = ["derive"] }
 codeowners-rs = "0.1"
+gix-quote = "0.7.0"
 itertools = "0.14.0"
 rayon = "1"
 tabled = "0.20"

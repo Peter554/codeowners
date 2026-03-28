@@ -1,6 +1,7 @@
-use std::io::{self, BufRead};
+use std::io;
 
 use anyhow::{bail, Result};
+use bstr::{io::BufReadExt, BStr};
 use clap::{CommandFactory, Parser, Subcommand};
 use tabled::{builder::Builder, settings::Style};
 
@@ -117,10 +118,12 @@ enum Commands {
 fn resolve_paths(paths: &[String], stdin: bool) -> Result<Vec<String>> {
     let mut result = paths.to_vec();
     if stdin {
-        for line in io::stdin().lock().lines() {
+        for line in io::stdin().lock().byte_lines() {
             let line = line?;
             if !line.is_empty() {
-                result.push(line);
+                let (unquoted, _) = gix_quote::ansi_c::undo(BStr::new(&line))
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                result.push(String::from_utf8(unquoted.to_vec())?);
             }
         }
     }
