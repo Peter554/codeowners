@@ -39,6 +39,9 @@ git ls-files | codeowners --stdin --filter unowned
 
 # Error if any files are unowned
 git ls-files | codeowners --stdin --check-unowned
+
+# Show unowned files added/modified between two refs (e.g. master and HEAD)
+git diff --name-only --diff-filter=d master..HEAD | codeowners --stdin --filter unowned --check-unowned
 ```
 
 ### explain
@@ -60,8 +63,11 @@ Show how code ownership changes between two git refs. Reports added files, remov
 # Compare HEAD to the working tree (default)
 codeowners diff
 
+# Compare master to HEAD
+codeowners diff master HEAD
+
 # Compare two refs
-codeowners diff main feature-branch
+codeowners diff master feature-branch
 ```
 
 ## Acknowledgements
