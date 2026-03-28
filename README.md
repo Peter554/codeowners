@@ -30,6 +30,9 @@ git ls-files | codeowners --stdin --filter @team-a,@team-b
 
 # Show only unowned files
 git ls-files | codeowners --stdin --filter unowned
+
+# Error if any files are unowned (prints table first)
+git ls-files | codeowners --stdin --check-unowned
 ```
 
 ### explain

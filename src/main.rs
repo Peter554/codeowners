@@ -15,7 +15,13 @@ fn main() -> Result<()> {
             stdin,
             no_check_path,
             filter,
-        }) => cmd_owners(&resolve_paths(&paths, stdin)?, no_check_path, &filter),
+            check_unowned,
+        }) => cmd_owners(
+            &resolve_paths(&paths, stdin)?,
+            no_check_path,
+            &filter,
+            check_unowned,
+        ),
         Some(Commands::Explain {
             path,
             no_check_path,
@@ -29,6 +35,7 @@ fn main() -> Result<()> {
             &resolve_paths(&cli.paths, cli.stdin)?,
             cli.no_check_path,
             &cli.filter,
+            cli.check_unowned,
         ),
     }
 }
@@ -54,6 +61,10 @@ struct Cli {
     /// Filter results by owner (comma-separated). Use "unowned" for unowned paths.
     #[arg(long, value_delimiter = ',')]
     filter: Vec<String>,
+
+    /// Error if any paths are unowned (after printing the table).
+    #[arg(long)]
+    check_unowned: bool,
 }
 
 #[derive(Subcommand)]
@@ -74,6 +85,10 @@ enum Commands {
         /// Filter results by owner (comma-separated). Use "unowned" for unowned paths.
         #[arg(long, value_delimiter = ',')]
         filter: Vec<String>,
+
+        /// Error if any paths are unowned (after printing the table).
+        #[arg(long)]
+        check_unowned: bool,
     },
 
     /// Explain the CODEOWNERS assignment for a path.
@@ -115,8 +130,15 @@ fn resolve_paths(paths: &[String], stdin: bool) -> Result<Vec<String>> {
     Ok(result)
 }
 
-fn cmd_owners(paths: &[String], no_check_path: bool, filter: &[String]) -> Result<()> {
+fn cmd_owners(
+    paths: &[String],
+    no_check_path: bool,
+    filter: &[String],
+    check_unowned: bool,
+) -> Result<()> {
     let owners = get_owners(paths, !no_check_path, filter)?;
+
+    let unowned_count = owners.iter().filter(|(_, o)| o.is_empty()).count();
 
     let rows: Vec<(String, String)> = owners
         .into_iter()
@@ -124,6 +146,11 @@ fn cmd_owners(paths: &[String], no_check_path: bool, filter: &[String]) -> Resul
         .collect();
 
     println!("{}", build_markdown_table(&["path", "owners"], &rows));
+
+    if check_unowned && unowned_count > 0 {
+        bail!("{unowned_count} unowned path(s)");
+    }
+
     Ok(())
 }
 
