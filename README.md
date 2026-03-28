@@ -8,11 +8,17 @@ CLI tools for working with GitHub CODEOWNERS files.
 cargo install --path .
 ```
 
-## Usage
+## Commands
 
 ### owners (default)
 
-Show the owners for one or more paths, based on the working tree CODEOWNERS. This is the default command — the `owners` subcommand can be omitted. By default, paths are checked for existence; use `--no-check-path` to skip this.
+Show the owners for one or more paths, based on the working tree CODEOWNERS. This is the default command — the `owners` subcommand can be omitted.
+
+**Flags:**
+- `--stdin` - Read paths from stdin (one per line)
+- `--no-check-path` - Skip checking that paths exist
+- `--filter` - Filter results by owner (comma-separated). Use `unowned` for unowned paths.
+- `--check-unowned` - Error if any paths are unowned (after printing the table)
 
 ```
 codeowners src/main.rs src/lib.rs
@@ -24,20 +30,23 @@ git ls-files | codeowners --stdin
 # Skip path existence check
 codeowners --no-check-path path/that/may/not/exist.rs
 
-# Filter by owner (comma-separated)
+# Filter by owner
 git ls-files | codeowners --stdin --filter @my-team
 git ls-files | codeowners --stdin --filter @team-a,@team-b
 
 # Show only unowned files
 git ls-files | codeowners --stdin --filter unowned
 
-# Error if any files are unowned (prints table first)
+# Error if any files are unowned
 git ls-files | codeowners --stdin --check-unowned
 ```
 
 ### explain
 
 Explain the CODEOWNERS assignment for a path. Shows all matching rules, which ones were superseded, and which rule is active.
+
+**Flags:**
+- `--no-check-path` - Skip checking that the path exists
 
 ```
 codeowners explain src/main.rs
