@@ -24,6 +24,12 @@ pub fn setup_repo(codeowners: &str, files: &[&str]) -> TempDir {
         .output()
         .unwrap();
 
+    Command::new("git")
+        .args(["config", "commit.gpgsign", "false"])
+        .current_dir(dir.path())
+        .output()
+        .unwrap();
+
     dir.child(".github/CODEOWNERS")
         .write_str(codeowners)
         .unwrap();
