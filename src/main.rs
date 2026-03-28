@@ -178,14 +178,13 @@ fn cmd_explain(path: &str, no_check_path: bool) -> Result<()> {
         println!("No matching rules.");
     } else {
         let mut builder = Builder::new();
-        builder.push_record(["", "line", "pattern", "owners", "status"]);
+        builder.push_record(["", "line", "pattern", "owners"]);
         for rule in &rules {
             builder.push_record([
                 if rule.active { "\u{2192}" } else { "" },
                 &rule.line.to_string(),
                 &rule.pattern,
                 &format_owners(&rule.owners),
-                if rule.active { "ACTIVE" } else { "superseded" },
             ]);
         }
         println!("{}", builder.build().with(Style::markdown()));
