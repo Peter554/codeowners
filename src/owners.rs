@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use codeowners_rs::{parse, RuleSet};
+use serde::Serialize;
 
 /// A CODEOWNERS rule that matched a path, with its source line number.
+#[derive(Debug, Serialize)]
 pub struct MatchedRule {
     pub line: usize,
     pub pattern: String,
@@ -153,4 +155,208 @@ pub fn build_filter_ruleset(changed_lines: &[String]) -> RuleSet {
         .collect();
 
     parse(&filter_src).into_ruleset()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn ruleset(src: &str) -> RuleSet {
+        parse(src).into_ruleset()
+    }
+
+    fn assert_index_entries(src: &str, pattern: &str, expected: &[(usize, &[&str])]) {
+        let index = build_pattern_index(src);
+        let entries = index
+            .get(pattern)
+            .unwrap_or_else(|| panic!("pattern {pattern:?} not found in index"));
+        let expected: Vec<(usize, Vec<String>)> = expected
+            .iter()
+            .map(|(line, owners)| (*line, owners.iter().map(|s| s.to_string()).collect()))
+            .collect();
+        assert_eq!(entries, &expected);
+    }
+
+    // -- build_pattern_index --------------------------------------------------
+
+    #[test]
+    fn index_basic() {
+        assert_index_entries(
+            "\
+* @global
+src/* @src-team",
+            "src/*",
+            &[(2, &["@src-team"])],
+        );
+    }
+
+    #[test]
+    fn index_comments_and_blanks() {
+        assert_index_entries(
+            "\
+# comment
+
+* @global",
+            "*",
+            &[(3, &["@global"])],
+        );
+    }
+
+    #[test]
+    fn index_duplicate_patterns() {
+        assert_index_entries(
+            "\
+*.rs @team-a
+*.rs @team-b",
+            "*.rs",
+            &[(1, &["@team-a"]), (2, &["@team-b"])],
+        );
+    }
+
+    #[test]
+    fn index_no_owners() {
+        assert_index_entries("*.log", "*.log", &[(1, &[])]);
+    }
+
+    // -- resolve_matched_rule -------------------------------------------------
+
+    #[test]
+    fn resolve_matches() {
+        let src = "\
+* @global
+src/* @src-team";
+        let rs = ruleset(src);
+        let index = build_pattern_index(src);
+        let rule = resolve_matched_rule(&rs, &index, "src/main.rs").expect("expected match");
+        assert_eq!(rule.pattern, "src/*");
+        assert_eq!(rule.line, 2);
+        assert_eq!(rule.owners, vec!["@src-team"]);
+        assert!(rule.active);
+    }
+
+    #[test]
+    fn resolve_no_match() {
+        let src = "src/* @src-team";
+        let rs = ruleset(src);
+        let index = build_pattern_index(src);
+        assert!(resolve_matched_rule(&rs, &index, "README.md").is_none());
+    }
+
+    #[test]
+    fn resolve_duplicate_last_wins() {
+        let src = "\
+*.rs @team-a
+*.rs @team-b";
+        let rs = ruleset(src);
+        let index = build_pattern_index(src);
+        let rule = resolve_matched_rule(&rs, &index, "lib.rs").expect("expected match");
+        assert_eq!(rule.pattern, "*.rs");
+        assert_eq!(rule.line, 2);
+        assert_eq!(rule.owners, vec!["@team-b"]);
+    }
+
+    // -- explain_path ---------------------------------------------------------
+
+    fn assert_explain(src: &str, path: &str, expected: &[(usize, &str, bool)]) {
+        let rs = ruleset(src);
+        let index = build_pattern_index(src);
+        let rules = explain_path(&rs, &index, path);
+        assert_eq!(rules.len(), expected.len(), "wrong number of rules");
+        for (rule, (line, pattern, active)) in rules.iter().zip(expected.iter()) {
+            assert_eq!(rule.line, *line);
+            assert_eq!(rule.pattern, *pattern);
+            assert_eq!(rule.active, *active);
+        }
+    }
+
+    #[test]
+    fn explain_single_rule() {
+        assert_explain("* @global", "any/file.rs", &[(1, "*", true)]);
+    }
+
+    #[test]
+    fn explain_multiple_rules() {
+        assert_explain(
+            "\
+* @global
+src/* @src-team",
+            "src/main.rs",
+            &[(1, "*", false), (2, "src/*", true)],
+        );
+    }
+
+    #[test]
+    fn explain_duplicate_pattern() {
+        assert_explain(
+            "\
+*.rs @team-a
+*.rs @team-b",
+            "lib.rs",
+            &[(1, "*.rs", false), (2, "*.rs", true)],
+        );
+    }
+
+    #[test]
+    fn explain_no_match() {
+        assert_explain("src/* @src-team", "README.md", &[]);
+    }
+
+    // -- changed_codeowners_lines ---------------------------------------------
+
+    fn assert_changed_lines(base: &str, head: &str, expected: &[&str]) {
+        let mut result = changed_codeowners_lines(base, head);
+        result.sort();
+        let mut expected: Vec<String> = expected.iter().map(|s| s.to_string()).collect();
+        expected.sort();
+        assert_eq!(result, expected);
+    }
+
+    #[test]
+    fn changed_identical() {
+        assert_changed_lines("* @global", "* @global", &[]);
+    }
+
+    #[test]
+    fn changed_added_line() {
+        assert_changed_lines(
+            "* @global",
+            "\
+* @global
+src/* @src-team",
+            &["src/* @src-team"],
+        );
+    }
+
+    #[test]
+    fn changed_removed_line() {
+        assert_changed_lines(
+            "\
+* @global
+src/* @src-team",
+            "* @global",
+            &["src/* @src-team"],
+        );
+    }
+
+    #[test]
+    fn changed_comments_ignored() {
+        assert_changed_lines(
+            "* @global",
+            "\
+# new comment
+* @global",
+            &[],
+        );
+    }
+
+    #[test]
+    fn changed_blanks_ignored() {
+        assert_changed_lines(
+            "* @global",
+            "
+* @global
+",
+            &[],
+        );
+    }
 }

@@ -96,6 +96,7 @@ pub enum GitRef<'a> {
 }
 
 /// The result of diffing ownership between two refs.
+#[derive(Debug, serde::Serialize)]
 pub struct OwnersDiff {
     /// Files present in head but not base, with their head owners.
     pub added: Vec<(String, Vec<String>)>,
@@ -180,4 +181,63 @@ pub fn get_diff(base_ref: &GitRef, head_ref: &GitRef) -> Result<OwnersDiff> {
         removed,
         changed,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn make_rule(owners: &[&str]) -> MatchedRule {
+        MatchedRule {
+            line: 1,
+            pattern: "*".to_owned(),
+            owners: owners.iter().map(|s| s.to_string()).collect(),
+            active: true,
+        }
+    }
+
+    fn assert_filter(rule: Option<MatchedRule>, filter: &[&str], expected: bool) {
+        let filter: HashSet<&str> = filter.iter().copied().collect();
+        assert_eq!(matches_filter(&rule, &filter), expected);
+    }
+
+    #[test]
+    fn filter_empty() {
+        assert_filter(Some(make_rule(&["@team"])), &[], true);
+    }
+
+    #[test]
+    fn filter_empty_none_rule() {
+        assert_filter(None, &[], true);
+    }
+
+    #[test]
+    fn filter_none_rule_with_unowned() {
+        assert_filter(None, &["unowned"], true);
+    }
+
+    #[test]
+    fn filter_none_rule_without_unowned() {
+        assert_filter(None, &["@team"], false);
+    }
+
+    #[test]
+    fn filter_matching_owner() {
+        assert_filter(Some(make_rule(&["@team-a", "@team-b"])), &["@team-b"], true);
+    }
+
+    #[test]
+    fn filter_no_matching_owner() {
+        assert_filter(Some(make_rule(&["@team-a"])), &["@team-b"], false);
+    }
+
+    #[test]
+    fn filter_empty_owners_with_unowned() {
+        assert_filter(Some(make_rule(&[])), &["unowned"], true);
+    }
+
+    #[test]
+    fn filter_empty_owners_without_unowned() {
+        assert_filter(Some(make_rule(&[])), &["@team"], false);
+    }
 }
