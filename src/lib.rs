@@ -9,21 +9,24 @@ mod git;
 mod owners;
 
 use git::{discover_repo_root, list_files, load_codeowners};
-use owners::{build_filter_ruleset, changed_codeowners_lines, explain_path, resolve_owners};
+use owners::{
+    build_filter_ruleset, build_pattern_index, changed_codeowners_lines, explain_path,
+    resolve_matched_rule, resolve_owners,
+};
 
 pub use owners::MatchedRule;
 
 /// Look up the owners for each path using the working tree CODEOWNERS.
 ///
-/// Returns a list of (path, owners) sorted by path. An empty owner list means
-/// the path is unowned. When `check_paths` is true, returns an error if any
-/// path does not exist. When `filter` is non-empty, only paths whose owners
+/// Returns a list of (path, matched rule) sorted by path. `None` means the
+/// path is unowned. When `check_paths` is true, returns an error if any path
+/// does not exist. When `filter` is non-empty, only paths whose owners
 /// intersect the filter are returned; use "unowned" to match unowned paths.
 pub fn get_owners(
     paths: &[String],
     check_paths: bool,
     filter: &[String],
-) -> Result<Vec<(String, Vec<String>)>> {
+) -> Result<Vec<(String, Option<MatchedRule>)>> {
     let root = discover_repo_root()?;
 
     if check_paths {
@@ -35,25 +38,30 @@ pub fn get_owners(
 
     let src = load_codeowners(&root, &GitRef::WorkingTree)?;
     let ruleset = parse(&src).into_ruleset();
+    let index = build_pattern_index(&src);
     let filter: HashSet<&str> = filter.iter().map(|s| s.as_str()).collect();
 
     let results: Vec<_> = paths
         .par_iter()
-        .map(|p| (p.clone(), resolve_owners(&ruleset, p)))
-        .filter(|(_, owners)| matches_filter(owners, &filter))
+        .map(|p| (p.clone(), resolve_matched_rule(&ruleset, &index, p)))
+        .filter(|(_, rule)| matches_filter(rule, &filter))
         .collect::<Vec<_>>()
         .into_iter()
-        .sorted()
+        .sorted_by(|(a, _), (b, _)| a.cmp(b))
         .collect();
 
     Ok(results)
 }
 
-/// Returns true if the owners match the filter, or if the filter is empty.
-fn matches_filter(owners: &[String], filter: &HashSet<&str>) -> bool {
+/// Returns true if the rule matches the filter, or if the filter is empty.
+fn matches_filter(rule: &Option<MatchedRule>, filter: &HashSet<&str>) -> bool {
     if filter.is_empty() {
         return true;
     }
+    let owners = match rule {
+        Some(r) => &r.owners,
+        None => return filter.contains("unowned"),
+    };
     if owners.is_empty() {
         return filter.contains("unowned");
     }
@@ -73,9 +81,10 @@ pub fn explain_owners(path: &str, check_path: bool) -> Result<(Vec<String>, Vec<
 
     let src = load_codeowners(&root, &GitRef::WorkingTree)?;
     let ruleset = parse(&src).into_ruleset();
+    let index = build_pattern_index(&src);
 
     let owners = resolve_owners(&ruleset, path);
-    let rules = explain_path(&ruleset, &src, path);
+    let rules = explain_path(&ruleset, &index, path);
 
     Ok((owners, rules))
 }

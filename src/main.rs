@@ -136,16 +136,31 @@ fn cmd_owners(
     filter: &[String],
     check_unowned: bool,
 ) -> Result<()> {
-    let owners = get_owners(paths, !no_check_path, filter)?;
+    let results = get_owners(paths, !no_check_path, filter)?;
 
-    let unowned_count = owners.iter().filter(|(_, o)| o.is_empty()).count();
+    let unowned_count = results
+        .iter()
+        .filter(|(_, rule)| match rule {
+            None => true,
+            Some(r) => r.owners.is_empty(),
+        })
+        .count();
 
-    let rows: Vec<(String, String)> = owners
+    let rows: Vec<(String, String, String)> = results
         .into_iter()
-        .map(|(path, o)| (format!("`{path}`"), format_owners(&o)))
+        .map(|(path, rule)| {
+            let (owners, line) = match rule {
+                Some(r) => (format_owners(&r.owners), r.line.to_string()),
+                None => (format_owners(&[]), String::new()),
+            };
+            (format!("`{path}`"), owners, line)
+        })
         .collect();
 
-    println!("{}", build_markdown_table(&["path", "owners"], &rows));
+    println!(
+        "{}",
+        build_markdown_table_3col(&["path", "owners", "line"], &rows)
+    );
 
     if check_unowned && unowned_count > 0 {
         bail!("{unowned_count} unowned path(s)");

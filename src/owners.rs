@@ -10,38 +10,80 @@ pub struct MatchedRule {
     pub active: bool,
 }
 
-/// Find all CODEOWNERS rules matching a path, with line numbers from the source.
+/// Find all CODEOWNERS rules matching a path, using the prebuilt pattern index.
 ///
-/// Gets the set of matching patterns from the ruleset, then scans the raw
-/// source to find those patterns and their line numbers. The last matching
-/// rule is marked active (CODEOWNERS uses last-match-wins semantics).
-pub fn explain_path(ruleset: &RuleSet, src: &str, path: &str) -> Vec<MatchedRule> {
-    let matching = ruleset.all_matching_rules(path);
-    let patterns: HashSet<&str> = matching.iter().map(|(_, r)| r.pattern.as_str()).collect();
+/// Gets the set of matching patterns from the ruleset, then looks up all
+/// occurrences in the index. Results are sorted by line number. The last
+/// matching rule is marked active (CODEOWNERS uses last-match-wins semantics).
+pub fn explain_path(ruleset: &RuleSet, index: &PatternIndex, path: &str) -> Vec<MatchedRule> {
+    let matched = ruleset.all_matching_rules(path);
+    let matched_patterns: HashSet<&str> = matched.iter().map(|(_, r)| r.pattern.as_str()).collect();
 
-    let mut rules: Vec<MatchedRule> = src
-        .lines()
-        .enumerate()
-        .filter_map(|(i, line)| {
-            let pattern = line.split_whitespace().next()?;
-            if !patterns.contains(pattern) {
-                return None;
-            }
-            let owners = line.split_whitespace().skip(1).map(String::from).collect();
-            Some(MatchedRule {
-                line: i + 1,
-                pattern: pattern.to_owned(),
-                owners,
-                active: false,
-            })
+    let mut matched_rules: Vec<MatchedRule> = matched_patterns
+        .iter()
+        .flat_map(|pattern| {
+            index
+                .get(*pattern)
+                .into_iter()
+                .flatten()
+                .map(|(line, owners)| MatchedRule {
+                    line: *line,
+                    pattern: (*pattern).to_owned(),
+                    owners: owners.clone(),
+                    active: false,
+                })
         })
         .collect();
 
-    if let Some(last) = rules.last_mut() {
+    matched_rules.sort_by_key(|r| r.line);
+
+    if let Some(last) = matched_rules.last_mut() {
         last.active = true;
     }
 
-    rules
+    matched_rules
+}
+
+/// Index mapping CODEOWNERS patterns to all their occurrences (line number, owners).
+pub type PatternIndex = HashMap<String, Vec<(usize, Vec<String>)>>;
+
+/// Build an index of pattern -> [(line number, owners)] by scanning the source once.
+pub fn build_pattern_index(src: &str) -> PatternIndex {
+    let mut index: PatternIndex = HashMap::new();
+    for (i, line) in src.lines().enumerate() {
+        let mut parts = line.split_whitespace();
+        if let Some(pattern) = parts.next() {
+            if pattern.starts_with('#') {
+                continue;
+            }
+            let owners: Vec<String> = parts.map(String::from).collect();
+            index
+                .entry(pattern.to_owned())
+                .or_default()
+                .push((i + 1, owners));
+        }
+    }
+    index
+}
+
+/// Resolve the active matching rule for a path using the prebuilt index.
+/// Uses the last occurrence of the winning pattern (CODEOWNERS last-match-wins).
+pub fn resolve_matched_rule(
+    ruleset: &RuleSet,
+    index: &PatternIndex,
+    path: &str,
+) -> Option<MatchedRule> {
+    let rule = ruleset.matching_rule(path)?;
+    let entries = index
+        .get(rule.pattern.as_str())
+        .expect("matching rule pattern must exist in index");
+    let (line, owners) = entries.last().expect("pattern index entry cannot be empty");
+    Some(MatchedRule {
+        line: *line,
+        pattern: rule.pattern.clone(),
+        owners: owners.clone(),
+        active: true,
+    })
 }
 
 /// Resolve the owners of a path, returning individual owner strings.
