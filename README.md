@@ -17,6 +17,9 @@ Show the owners for one or more paths, based on the working tree CODEOWNERS. Thi
 ```
 codeowners src/main.rs src/lib.rs
 codeowners owners src/main.rs src/lib.rs  # equivalent
+
+# Read paths from stdin
+git ls-files | codeowners --stdin
 ```
 
 ### explain

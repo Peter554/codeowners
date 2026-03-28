@@ -1,4 +1,6 @@
-use anyhow::Result;
+use std::io::{self, BufRead};
+
+use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use tabled::{builder::Builder, settings::Style};
 
@@ -8,14 +10,14 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Owners { paths }) => cmd_owners(&paths),
+        Some(Commands::Owners { paths, stdin }) => cmd_owners(&resolve_paths(&paths, stdin)?),
         Some(Commands::Explain { path }) => cmd_explain(&path),
         Some(Commands::Diff { base_ref, head_ref }) => cmd_diff(&base_ref, &head_ref),
-        None if cli.paths.is_empty() => {
+        None if cli.paths.is_empty() && !cli.stdin => {
             Cli::command().print_help()?;
             Ok(())
         }
-        None => cmd_owners(&cli.paths),
+        None => cmd_owners(&resolve_paths(&cli.paths, cli.stdin)?),
     }
 }
 
@@ -28,6 +30,10 @@ struct Cli {
 
     /// Paths to look up owners for.
     paths: Vec<String>,
+
+    /// Read paths from stdin (one per line).
+    #[arg(long)]
+    stdin: bool,
 }
 
 #[derive(Subcommand)]
@@ -35,8 +41,11 @@ enum Commands {
     /// Show the owners for one or more paths.
     Owners {
         /// Paths to look up owners for.
-        #[arg(required = true)]
         paths: Vec<String>,
+
+        /// Read paths from stdin (one per line).
+        #[arg(long)]
+        stdin: bool,
     },
 
     /// Explain the CODEOWNERS assignment for a path.
@@ -55,6 +64,23 @@ enum Commands {
         #[arg(default_value = "")]
         head_ref: String,
     },
+}
+
+/// Collect paths from args and/or stdin.
+fn resolve_paths(paths: &[String], stdin: bool) -> Result<Vec<String>> {
+    let mut result = paths.to_vec();
+    if stdin {
+        for line in io::stdin().lock().lines() {
+            let line = line?;
+            if !line.is_empty() {
+                result.push(line);
+            }
+        }
+    }
+    if result.is_empty() {
+        bail!("no paths provided");
+    }
+    Ok(result)
 }
 
 fn cmd_owners(paths: &[String]) -> Result<()> {
