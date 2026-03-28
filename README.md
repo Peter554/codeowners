@@ -5,7 +5,7 @@ CLI tools for working with GitHub CODEOWNERS files.
 ## Install
 
 ```
-cargo install --path .
+cargo install --git https://github.com/Peter554/codeowners
 ```
 
 ## Commands
