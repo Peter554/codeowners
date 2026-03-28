@@ -96,6 +96,7 @@ pub enum GitRef<'a> {
 }
 
 /// The result of diffing ownership between two refs.
+#[derive(Debug, serde::Serialize)]
 pub struct OwnersDiff {
     /// Files present in head but not base, with their head owners.
     pub added: Vec<(String, Vec<String>)>,

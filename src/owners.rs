@@ -1,8 +1,10 @@
 use std::collections::{HashMap, HashSet};
 
 use codeowners_rs::{parse, RuleSet};
+use serde::Serialize;
 
 /// A CODEOWNERS rule that matched a path, with its source line number.
+#[derive(Debug, Serialize)]
 pub struct MatchedRule {
     pub line: usize,
     pub pattern: String,
