@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use clap::{CommandFactory, Parser, Subcommand};
 use tabled::{builder::Builder, settings::Style};
 
-use codeowners::{get_diff, get_explain, get_owners, GitRef};
+use codeowners::{explain_owners, get_diff, get_owners, GitRef};
 
 fn main() -> Result<()> {
     let cli = Cli::parse();
@@ -115,7 +115,7 @@ fn cmd_owners(paths: &[String], no_check_path: bool) -> Result<()> {
 }
 
 fn cmd_explain(path: &str, no_check_path: bool) -> Result<()> {
-    let (owners, rules) = get_explain(path, !no_check_path)?;
+    let (owners, rules) = explain_owners(path, !no_check_path)?;
 
     println!("Owners: {}\n", format_owners(&owners));
 

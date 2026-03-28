@@ -44,7 +44,7 @@ pub fn get_owners(paths: &[String], check_paths: bool) -> Result<Vec<(String, Ve
 ///
 /// Returns the active owners and all matching rules with line numbers.
 /// When `check_path` is true, returns an error if the path does not exist.
-pub fn get_explain(path: &str, check_path: bool) -> Result<(Vec<String>, Vec<MatchedRule>)> {
+pub fn explain_owners(path: &str, check_path: bool) -> Result<(Vec<String>, Vec<MatchedRule>)> {
     let root = discover_repo_root()?;
 
     if check_path && !root.join(path).exists() {
