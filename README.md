@@ -14,11 +14,23 @@ cargo install --path .
 
 Show the owners for one or more paths, based on the working tree CODEOWNERS. This is the default command — the `owners` subcommand can be omitted.
 
-**Flags:**
-- `--stdin` - Read paths from stdin (one per line)
-- `--no-check-path` - Skip checking that paths exist
-- `--filter` - Filter results by owner (comma-separated). Use `unowned` for unowned paths.
-- `--check-unowned` - Error if any paths are unowned (after printing the table)
+```
+Show the owners for one or more paths
+
+Usage: codeowners owners [OPTIONS] [PATHS]...
+
+Arguments:
+  [PATHS]...  Paths to look up owners for
+
+Options:
+      --stdin            Read paths from stdin (one per line)
+      --no-check-path    Skip checking that paths exist
+      --filter <FILTER>  Filter results by owner (comma-separated). Use "unowned" for unowned paths
+      --check-unowned    Error if any paths are unowned (after printing the table)
+  -h, --help             Print help
+```
+
+**Examples:**
 
 ```
 codeowners src/main.rs src/lib.rs
@@ -48,8 +60,20 @@ git diff --name-only --diff-filter=d master..HEAD | codeowners --stdin --filter 
 
 Explain the CODEOWNERS assignment for a path. Shows all matching rules, which ones were superseded, and which rule is active.
 
-**Flags:**
-- `--no-check-path` - Skip checking that the path exists
+```
+Explain the CODEOWNERS assignment for a path
+
+Usage: codeowners explain [OPTIONS] <PATH>
+
+Arguments:
+  <PATH>  Path to explain ownership for
+
+Options:
+      --no-check-path  Skip checking that the path exists
+  -h, --help           Print help
+```
+
+**Examples:**
 
 ```
 codeowners explain src/main.rs
@@ -58,6 +82,21 @@ codeowners explain src/main.rs
 ### diff
 
 Show how code ownership changes between two git refs. Reports added files, removed files, and files whose ownership changed due to CODEOWNERS rule changes.
+
+```
+Show how code ownership changes between two git refs
+
+Usage: codeowners diff [BASE_REF] [HEAD_REF]
+
+Arguments:
+  [BASE_REF]  Base ref to compare from [default: HEAD]
+  [HEAD_REF]  Head ref to compare to (default: the working tree)
+
+Options:
+  -h, --help  Print help
+```
+
+**Examples:**
 
 ```
 # Compare HEAD to the working tree (default)
