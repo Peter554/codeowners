@@ -178,7 +178,7 @@ fn cmd_explain(path: &str, no_check_path: bool) -> Result<()> {
         println!("No matching rules.");
     } else {
         let mut builder = Builder::new();
-        builder.push_record(["", "Line", "Pattern", "Owners", "Status"]);
+        builder.push_record(["", "line", "pattern", "owners", "status"]);
         for rule in &rules {
             builder.push_record([
                 if rule.active { "\u{2192}" } else { "" },
