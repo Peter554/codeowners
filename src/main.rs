@@ -10,14 +10,21 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Some(Commands::Owners { paths, stdin }) => cmd_owners(&resolve_paths(&paths, stdin)?),
-        Some(Commands::Explain { path }) => cmd_explain(&path),
+        Some(Commands::Owners {
+            paths,
+            stdin,
+            no_check_path,
+        }) => cmd_owners(&resolve_paths(&paths, stdin)?, no_check_path),
+        Some(Commands::Explain {
+            path,
+            no_check_path,
+        }) => cmd_explain(&path, no_check_path),
         Some(Commands::Diff { base_ref, head_ref }) => cmd_diff(&base_ref, &head_ref),
         None if cli.paths.is_empty() && !cli.stdin => {
             Cli::command().print_help()?;
             Ok(())
         }
-        None => cmd_owners(&resolve_paths(&cli.paths, cli.stdin)?),
+        None => cmd_owners(&resolve_paths(&cli.paths, cli.stdin)?, cli.no_check_path),
     }
 }
 
@@ -34,6 +41,10 @@ struct Cli {
     /// Read paths from stdin (one per line).
     #[arg(long)]
     stdin: bool,
+
+    /// Skip checking that paths exist.
+    #[arg(long)]
+    no_check_path: bool,
 }
 
 #[derive(Subcommand)]
@@ -46,12 +57,20 @@ enum Commands {
         /// Read paths from stdin (one per line).
         #[arg(long)]
         stdin: bool,
+
+        /// Skip checking that paths exist.
+        #[arg(long)]
+        no_check_path: bool,
     },
 
     /// Explain the CODEOWNERS assignment for a path.
     Explain {
         /// Path to explain ownership for.
         path: String,
+
+        /// Skip checking that the path exists.
+        #[arg(long)]
+        no_check_path: bool,
     },
 
     /// Show how code ownership changes between two git refs.
@@ -83,8 +102,8 @@ fn resolve_paths(paths: &[String], stdin: bool) -> Result<Vec<String>> {
     Ok(result)
 }
 
-fn cmd_owners(paths: &[String]) -> Result<()> {
-    let owners = get_owners(paths)?;
+fn cmd_owners(paths: &[String], no_check_path: bool) -> Result<()> {
+    let owners = get_owners(paths, !no_check_path)?;
 
     let rows: Vec<(String, String)> = owners
         .into_iter()
@@ -95,8 +114,8 @@ fn cmd_owners(paths: &[String]) -> Result<()> {
     Ok(())
 }
 
-fn cmd_explain(path: &str) -> Result<()> {
-    let (owners, rules) = get_explain(path)?;
+fn cmd_explain(path: &str, no_check_path: bool) -> Result<()> {
+    let (owners, rules) = get_explain(path, !no_check_path)?;
 
     println!("Owners: {}\n", format_owners(&owners));
 

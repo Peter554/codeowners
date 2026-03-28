@@ -14,13 +14,16 @@ pub use owners::MatchedRule;
 /// Look up the owners for each path using the working tree CODEOWNERS.
 ///
 /// Returns a list of (path, owners) sorted by path. An empty owner list means
-/// the path is unowned. Returns an error if any path does not exist.
-pub fn get_owners(paths: &[String]) -> Result<Vec<(String, Vec<String>)>> {
+/// the path is unowned. When `check_paths` is true, returns an error if any
+/// path does not exist.
+pub fn get_owners(paths: &[String], check_paths: bool) -> Result<Vec<(String, Vec<String>)>> {
     let root = discover_repo_root()?;
 
-    let missing: Vec<_> = paths.iter().filter(|p| !root.join(p).exists()).collect();
-    if !missing.is_empty() {
-        bail!("paths do not exist:\n{}", missing.iter().join("\n"));
+    if check_paths {
+        let missing: Vec<_> = paths.iter().filter(|p| !root.join(p).exists()).collect();
+        if !missing.is_empty() {
+            bail!("paths do not exist:\n{}", missing.iter().join("\n"));
+        }
     }
 
     let src = load_codeowners(&root, &GitRef::WorkingTree)?;
@@ -36,11 +39,11 @@ pub fn get_owners(paths: &[String]) -> Result<Vec<(String, Vec<String>)>> {
 /// Explain the CODEOWNERS assignment for a single path.
 ///
 /// Returns the active owners and all matching rules with line numbers.
-/// Returns an error if the path does not exist.
-pub fn get_explain(path: &str) -> Result<(Vec<String>, Vec<MatchedRule>)> {
+/// When `check_path` is true, returns an error if the path does not exist.
+pub fn get_explain(path: &str, check_path: bool) -> Result<(Vec<String>, Vec<MatchedRule>)> {
     let root = discover_repo_root()?;
 
-    if !root.join(path).exists() {
+    if check_path && !root.join(path).exists() {
         bail!("path does not exist: {path}");
     }
 

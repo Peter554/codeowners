@@ -12,7 +12,7 @@ cargo install --path .
 
 ### owners (default)
 
-Show the owners for one or more paths, based on the working tree CODEOWNERS. This is the default command — the `owners` subcommand can be omitted.
+Show the owners for one or more paths, based on the working tree CODEOWNERS. This is the default command — the `owners` subcommand can be omitted. By default, paths are checked for existence; use `--no-check-path` to skip this.
 
 ```
 codeowners src/main.rs src/lib.rs
@@ -20,6 +20,9 @@ codeowners owners src/main.rs src/lib.rs  # equivalent
 
 # Read paths from stdin
 git ls-files | codeowners --stdin
+
+# Skip path existence check
+codeowners --no-check-path path/that/may/not/exist.rs
 ```
 
 ### explain
