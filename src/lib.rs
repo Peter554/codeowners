@@ -29,11 +29,15 @@ pub fn get_owners(paths: &[String], check_paths: bool) -> Result<Vec<(String, Ve
     let src = load_codeowners(&root, &GitRef::WorkingTree)?;
     let ruleset = parse(&src).into_ruleset();
 
-    Ok(paths
-        .iter()
+    let results: Vec<_> = paths
+        .par_iter()
         .map(|p| (p.clone(), resolve_owners(&ruleset, p)))
+        .collect::<Vec<_>>()
+        .into_iter()
         .sorted()
-        .collect())
+        .collect();
+
+    Ok(results)
 }
 
 /// Explain the CODEOWNERS assignment for a single path.
