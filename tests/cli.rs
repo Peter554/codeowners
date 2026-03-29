@@ -29,10 +29,10 @@ src/* @src-team",
 
     assert!(output.status.success());
     assert_snapshot!(String::from_utf8(output.stdout).unwrap(), @"
-    | path          | owners    | line |
-    |---------------|-----------|------|
-    | `README.md`   | @global   | 1    |
-    | `src/main.rs` | @src-team | 2    |
+    | path          | owners    |
+    |---------------|-----------|
+    | `README.md`   | @global   |
+    | `src/main.rs` | @src-team |
     ");
 }
 
@@ -118,10 +118,10 @@ fn cli_check_unowned_fails() {
     assert!(!output.status.success());
     // Table is still printed to stdout.
     assert_snapshot!(String::from_utf8(output.stdout).unwrap(), @"
-    | path          | owners    | line |
-    |---------------|-----------|------|
-    | `README.md`   | (unowned) |      |
-    | `src/main.rs` | @src-team | 1    |
+    | path          | owners    |
+    |---------------|-----------|
+    | `README.md`   | (unowned) |
+    | `src/main.rs` | @src-team |
     ");
     // Error message on stderr.
     assert_snapshot!(String::from_utf8(output.stderr).unwrap(), @"Error: 1 unowned path(s)");
